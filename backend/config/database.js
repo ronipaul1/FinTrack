@@ -16,6 +16,17 @@ const pool = mysql.createPool({
 const initDB = async () => {
   const conn = await pool.getConnection();
   try {
+    const ensureColumn = async (table, column, definition) => {
+      const [columns] = await conn.execute(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [table, column]
+      );
+      if (columns.length === 0) {
+        await conn.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      }
+    };
+
     // Users table
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS users (
@@ -34,6 +45,9 @@ const initDB = async () => {
         INDEX idx_email (email)
       )
     `);
+
+    await ensureColumn('users', 'otp_secret', 'VARCHAR(64)');
+    await ensureColumn('users', 'otp_enabled', 'BOOLEAN DEFAULT FALSE');
 
     // Categories table
     await conn.execute(`

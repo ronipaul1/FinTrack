@@ -2,12 +2,104 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
+const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'otp-authenticator.p.rapidapi.com';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
+const OTP_ISSUER = process.env.OTP_ISSUER || 'FinTrack';
+
+const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+const generateOtpSecret = () => {
+  const bytes = crypto.randomBytes(10);
+  let bits = '';
+  for (const byte of bytes) bits += byte.toString(2).padStart(8, '0');
+  return bits.match(/.{1,5}/g).map(chunk => base32Chars[parseInt(chunk.padEnd(5, '0'), 2)]).join('');
+};
+
+const signAuthToken = (userId) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+const signOtpToken = (userId) => jwt.sign({ userId, purpose: 'otp' }, JWT_SECRET, { expiresIn: '10m' });
+
+const serializeUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  phone: user.phone,
+  currency: user.currency || 'INR',
+  dark_mode: user.dark_mode,
+  profile_photo: user.profile_photo
+});
+
+const rapidOtpRequest = async (path, payload) => {
+  if (!RAPIDAPI_KEY) {
+    throw new Error('RAPIDAPI_KEY is not configured');
+  }
+
+  const response = await fetch(`https://${RAPIDAPI_HOST}${path}`, {
+    method: 'POST',
+    headers: {
+      'x-rapidapi-key': RAPIDAPI_KEY,
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams(payload).toString()
+  });
+
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    throw new Error(typeof data === 'string' ? data : data?.message || 'RapidAPI OTP request failed');
+  }
+
+  return data;
+};
+
+const isOtpValid = (result) => {
+  if (result === true) return true;
+  if (typeof result === 'string') {
+    const normalized = result.toLowerCase();
+    return normalized.includes('true') || normalized.includes('valid') || normalized.includes('success');
+  }
+  if (!result || typeof result !== 'object') return false;
+  return result.valid === true || result.success === true || result.status === 'valid' || result.status === true;
+};
+
+const createOtpChallenge = async (user, includeSetup = false) => {
+  let secret = user.otp_secret;
+  if (!secret) {
+    secret = generateOtpSecret();
+    await pool.execute('UPDATE users SET otp_secret = ? WHERE id = ?', [secret, user.id]);
+  }
+
+  const challenge = {
+    otp_required: true,
+    otp_setup_required: includeSetup || !user.otp_enabled,
+    pending_token: signOtpToken(user.id)
+  };
+
+  if (challenge.otp_setup_required) {
+    challenge.otp_setup = await rapidOtpRequest('/enroll/', {
+      secret,
+      account: user.email,
+      issuer: OTP_ISSUER,
+      printQR: true
+    });
+    challenge.manual_secret = secret;
+  }
+
+  return challenge;
+};
 
 // Default categories for new users
 const defaultCategories = [
@@ -63,10 +155,8 @@ router.post('/register', [
       );
     }
 
-    const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
-
     res.status(201).json({
-      token,
+      ...(await createOtpChallenge({ id: userId, name, email, phone, currency: 'INR' }, true)),
       user: { id: userId, name, email, phone, currency: 'INR' }
     });
   } catch (error) {
@@ -99,23 +189,57 @@ router.post('/login', [
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-
     res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        currency: user.currency,
-        dark_mode: user.dark_mode,
-        profile_photo: user.profile_photo
-      }
+      ...(await createOtpChallenge(user)),
+      user: serializeUser(user)
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Verify authenticator OTP and issue session token
+router.post('/verify-otp', [
+  body('pending_token').notEmpty(),
+  body('code').trim().isLength({ min: 6, max: 6 }).withMessage('Enter a 6 digit code'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { pending_token, code } = req.body;
+
+  try {
+    const decoded = jwt.verify(pending_token, JWT_SECRET);
+    if (decoded.purpose !== 'otp') {
+      return res.status(401).json({ error: 'Invalid OTP session' });
+    }
+
+    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [decoded.userId]);
+    if (users.length === 0 || !users[0].otp_secret) {
+      return res.status(401).json({ error: 'Invalid OTP session' });
+    }
+
+    const result = await rapidOtpRequest('/validate/', {
+      secret: users[0].otp_secret,
+      code
+    });
+
+    if (!isOtpValid(result)) {
+      return res.status(401).json({ error: 'Invalid OTP code' });
+    }
+
+    await pool.execute('UPDATE users SET otp_enabled = TRUE WHERE id = ?', [users[0].id]);
+
+    res.json({
+      token: signAuthToken(users[0].id),
+      user: serializeUser(users[0])
+    });
+  } catch (error) {
+    console.error('OTP verify error:', error);
+    res.status(401).json({ error: 'OTP verification failed' });
   }
 });
 
