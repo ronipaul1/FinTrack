@@ -26,6 +26,11 @@ const fs = require('fs');
 const uploadDir = path.join(__dirname, '../uploads/receipts');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+const toBooleanValue = (value) => {
+  if (value === true || value === 'true' || value === '1' || value === 1) return 1;
+  return 0;
+};
+
 // Get all transactions
 router.get('/', auth, async (req, res) => {
   try {
@@ -123,7 +128,7 @@ router.post('/', auth, upload.single('receipt'), [
     await pool.execute(
       `INSERT INTO transactions (id, user_id, type, amount, category_id, description, date, tags, receipt_url, is_recurring, recurring_interval, notes, currency)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, req.userId, type, amount, category_id || null, description || null, date, tagsJson, receipt_url, is_recurring || false, recurring_interval || null, notes || null, currency || 'INR']
+      [id, req.userId, type, amount, category_id || null, description || null, date, tagsJson, receipt_url, toBooleanValue(is_recurring), recurring_interval || null, notes || null, currency || 'INR']
     );
 
     const [newTransaction] = await pool.execute(
@@ -155,7 +160,7 @@ router.put('/:id', auth, upload.single('receipt'), async (req, res) => {
     const tagsJson = tags ? JSON.stringify(typeof tags === 'string' ? JSON.parse(tags) : tags) : null;
 
     let sql = `UPDATE transactions SET type=?, amount=?, category_id=?, description=?, date=?, tags=?, is_recurring=?, recurring_interval=?, notes=?, currency=?`;
-    const params = [type, amount, category_id || null, description || null, date, tagsJson, is_recurring || false, recurring_interval || null, notes || null, currency || 'INR'];
+    const params = [type, amount, category_id || null, description || null, date, tagsJson, toBooleanValue(is_recurring), recurring_interval || null, notes || null, currency || 'INR'];
 
     if (receipt_url) { sql += ', receipt_url=?'; params.push(receipt_url); }
     sql += ' WHERE id = ? AND user_id = ?';
