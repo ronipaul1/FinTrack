@@ -58,12 +58,12 @@ const createOtpChallenge = async (user) => {
   const code = String(crypto.randomInt(100000, 1000000));
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
+  await sendOtpEmail(user.email, code);
+
   await pool.execute(
     'UPDATE users SET otp_code_hash = ?, otp_expires_at = ? WHERE id = ?',
     [hashOtp(code), expiresAt, user.id]
   );
-
-  await sendOtpEmail(user.email, code);
 
   return {
     otp_required: true,
@@ -104,6 +104,7 @@ router.post('/register', [
   }
 
   const { name, email, password, phone } = req.body;
+  let conn;
 
   try {
     const [existing] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
@@ -113,27 +114,42 @@ router.post('/register', [
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const userId = uuidv4();
+    const code = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    await pool.execute(
-      'INSERT INTO users (id, name, email, password, phone) VALUES (?, ?, ?, ?, ?)',
-      [userId, name, email, hashedPassword, phone || null]
+    await sendOtpEmail(email, code);
+
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    await conn.execute(
+      'INSERT INTO users (id, name, email, password, phone, otp_code_hash, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, name, email, hashedPassword, phone || null, hashOtp(code), expiresAt]
     );
 
     // Create default categories
     for (const cat of defaultCategories) {
-      await pool.execute(
+      await conn.execute(
         'INSERT INTO categories (id, user_id, name, type, color, icon, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [uuidv4(), userId, cat.name, cat.type, cat.color, cat.icon, true]
       );
     }
 
+    await conn.commit();
+
     res.status(201).json({
-      ...(await createOtpChallenge({ id: userId, name, email, phone, currency: 'INR' })),
+      otp_required: true,
+      otp_channel: 'email',
+      pending_token: signOtpToken(userId),
+      email,
       user: { id: userId, name, email, phone, currency: 'INR' }
     });
   } catch (error) {
+    if (conn) await conn.rollback();
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: error.message || 'Registration failed' });
+  } finally {
+    if (conn) conn.release();
   }
 });
 

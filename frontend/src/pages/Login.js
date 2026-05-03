@@ -26,7 +26,7 @@ export default function Login() {
         navigate('/');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed');
+      toast.error(err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || 'Login failed');
     } finally {
       setLoading(false);
     }
