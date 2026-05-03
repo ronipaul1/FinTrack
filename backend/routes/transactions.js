@@ -35,6 +35,9 @@ const toBooleanValue = (value) => {
 router.get('/', auth, async (req, res) => {
   try {
     const { type, category_id, start_date, end_date, search, page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const offsetNum = (pageNum - 1) * limitNum;
     
     let sql = `
       SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon
@@ -55,14 +58,13 @@ router.get('/', auth, async (req, res) => {
     const [countResult] = await pool.execute(countSql, params);
     const total = countResult[0].total;
 
-    sql += ' ORDER BY t.date DESC, t.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+    sql += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
     const [transactions] = await pool.execute(sql, params);
     
     res.json({
       transactions,
-      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / limit) }
+      pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) }
     });
   } catch (error) {
     console.error('Get transactions error:', error);
