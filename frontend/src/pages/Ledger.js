@@ -82,8 +82,6 @@ export default function Ledger() {
     fetchCustomers();
   };
 
-  const totalBalance = customers.reduce((s, c) => s + parseFloat(c.balance || 0), 0);
-
   return (
     <div className="fade-in">
       <div className="page-header">

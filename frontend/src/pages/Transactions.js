@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
-import { formatCurrency, formatDate, today } from '../utils/format';
+import { formatCurrency, formatDate } from '../utils/format';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import TransactionModal from '../components/transactions/TransactionModal';
