@@ -13,12 +13,6 @@ export default function Register() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const getSetupText = () => {
-    if (!otpChallenge?.otp_setup) return '';
-    if (typeof otpChallenge.otp_setup === 'string') return otpChallenge.otp_setup;
-    return otpChallenge.otp_setup.qr || otpChallenge.otp_setup.qrcode || otpChallenge.otp_setup.url || otpChallenge.otp_setup.otpauth_url || JSON.stringify(otpChallenge.otp_setup);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
@@ -27,7 +21,7 @@ export default function Register() {
       const result = await register(form);
       if (result.otp_required) {
         setOtpChallenge(result);
-        toast.success('Account created. Set up OTP to continue.');
+        toast.success('Account created. Enter the code sent to your email.');
         return;
       }
       toast.success('Account created! Welcome to FinTrack 🎉');
@@ -88,7 +82,7 @@ export default function Register() {
           {otpChallenge ? (
             <form onSubmit={handleOtpSubmit}>
               <div className="form-group">
-                <label className="form-label">Authenticator Code</label>
+                <label className="form-label">Email OTP</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -99,11 +93,9 @@ export default function Register() {
                   required
                 />
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, wordBreak: 'break-word' }}>
-                <strong style={{ color: 'var(--text-primary)' }}>Set up authenticator:</strong>
-                <div style={{ marginTop: 8 }}>{getSetupText()}</div>
-                {otpChallenge.manual_secret && <div style={{ marginTop: 8 }}>Manual secret: {otpChallenge.manual_secret}</div>}
-              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                We sent a 6 digit code to {otpChallenge.email || form.email}. It expires in a few minutes.
+              </p>
               <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
                 {loading ? <span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> : 'Verify Code'}
               </button>

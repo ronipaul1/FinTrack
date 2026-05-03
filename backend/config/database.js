@@ -48,6 +48,8 @@ const initDB = async () => {
 
     await ensureColumn('users', 'otp_secret', 'VARCHAR(64)');
     await ensureColumn('users', 'otp_enabled', 'BOOLEAN DEFAULT FALSE');
+    await ensureColumn('users', 'otp_code_hash', 'VARCHAR(64)');
+    await ensureColumn('users', 'otp_expires_at', 'DATETIME');
 
     // Categories table
     await conn.execute(`

@@ -9,18 +9,9 @@ const pool = require('../config/database');
 const auth = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
-const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'otp-authenticator.p.rapidapi.com';
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-const OTP_ISSUER = process.env.OTP_ISSUER || 'FinTrack';
-
-const base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
-const generateOtpSecret = () => {
-  const bytes = crypto.randomBytes(10);
-  let bits = '';
-  for (const byte of bytes) bits += byte.toString(2).padStart(8, '0');
-  return bits.match(/.{1,5}/g).map(chunk => base32Chars[parseInt(chunk.padEnd(5, '0'), 2)]).join('');
-};
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM = process.env.RESEND_FROM || 'FinTrack <onboarding@resend.dev>';
+const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 5;
 
 const signAuthToken = (userId) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 const signOtpToken = (userId) => jwt.sign({ userId, purpose: 'otp' }, JWT_SECRET, { expiresIn: '10m' });
@@ -35,75 +26,51 @@ const serializeUser = (user) => ({
   profile_photo: user.profile_photo
 });
 
-const rapidOtpRequest = async (path, payload) => {
-  if (!RAPIDAPI_KEY) {
-    throw new Error('RAPIDAPI_KEY is not configured');
+const hashOtp = (code) => crypto.createHash('sha256').update(code).digest('hex');
+
+const sendOtpEmail = async (email, code) => {
+  if (!RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not configured');
   }
 
-  const response = await fetch(`https://${RAPIDAPI_HOST}${path}`, {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'x-rapidapi-key': RAPIDAPI_KEY,
-      'x-rapidapi-host': RAPIDAPI_HOST,
-      'Content-Type': 'application/x-www-form-urlencoded'
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
     },
-    body: new URLSearchParams(payload).toString()
+    body: JSON.stringify({
+      from: RESEND_FROM,
+      to: [email],
+      subject: 'Your FinTrack verification code',
+      html: `<p>Your FinTrack verification code is:</p><h2>${code}</h2><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p>`,
+      text: `Your FinTrack verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
+    })
   });
 
-  const text = await response.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = text;
-  }
-
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(typeof data === 'string' ? data : data?.message || 'RapidAPI OTP request failed');
+    throw new Error(data?.message || data?.error || 'Failed to send OTP email');
   }
-
-  return data;
 };
 
-const isOtpValid = (result) => {
-  if (result === true) return true;
-  if (typeof result === 'string') {
-    const normalized = result.toLowerCase();
-    return normalized.includes('true') || normalized.includes('valid') || normalized.includes('success');
-  }
-  if (!result || typeof result !== 'object') return false;
-  return result.valid === true || result.success === true || result.status === 'valid' || result.status === true;
-};
+const createOtpChallenge = async (user) => {
+  const code = String(crypto.randomInt(100000, 1000000));
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-const createOtpChallenge = async (user, includeSetup = false) => {
-  let secret = user.otp_secret;
-  if (!secret) {
-    secret = generateOtpSecret();
-    await pool.execute('UPDATE users SET otp_secret = ? WHERE id = ?', [secret, user.id]);
-  }
+  await pool.execute(
+    'UPDATE users SET otp_code_hash = ?, otp_expires_at = ? WHERE id = ?',
+    [hashOtp(code), expiresAt, user.id]
+  );
 
-  const challenge = {
+  await sendOtpEmail(user.email, code);
+
+  return {
     otp_required: true,
-    otp_setup_required: includeSetup || !user.otp_enabled,
-    pending_token: signOtpToken(user.id)
+    otp_channel: 'email',
+    pending_token: signOtpToken(user.id),
+    email: user.email
   };
-
-  if (challenge.otp_setup_required) {
-    try {
-      challenge.otp_setup = await rapidOtpRequest('/enroll/', {
-        secret,
-        account: user.email,
-        issuer: OTP_ISSUER,
-        printQR: true
-      });
-    } catch (error) {
-      console.error('OTP enroll error:', error.message);
-      challenge.otp_setup_error = 'QR setup is unavailable. Use the manual secret.';
-    }
-    challenge.manual_secret = secret;
-  }
-
-  return challenge;
 };
 
 // Default categories for new users
@@ -161,7 +128,7 @@ router.post('/register', [
     }
 
     res.status(201).json({
-      ...(await createOtpChallenge({ id: userId, name, email, phone, currency: 'INR' }, true)),
+      ...(await createOtpChallenge({ id: userId, name, email, phone, currency: 'INR' })),
       user: { id: userId, name, email, phone, currency: 'INR' }
     });
   } catch (error) {
@@ -194,13 +161,6 @@ router.post('/login', [
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (!user.otp_enabled) {
-      return res.json({
-        token: signAuthToken(user.id),
-        user: serializeUser(user)
-      });
-    }
-
     res.json({
       ...(await createOtpChallenge(user)),
       user: serializeUser(user)
@@ -211,7 +171,7 @@ router.post('/login', [
   }
 });
 
-// Verify authenticator OTP and issue session token
+// Verify email OTP and issue session token
 router.post('/verify-otp', [
   body('pending_token').notEmpty(),
   body('code').trim().isLength({ min: 6, max: 6 }).withMessage('Enter a 6 digit code'),
@@ -230,20 +190,22 @@ router.post('/verify-otp', [
     }
 
     const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [decoded.userId]);
-    if (users.length === 0 || !users[0].otp_secret) {
+    if (users.length === 0 || !users[0].otp_code_hash || !users[0].otp_expires_at) {
       return res.status(401).json({ error: 'Invalid OTP session' });
     }
 
-    const result = await rapidOtpRequest('/validate/', {
-      secret: users[0].otp_secret,
-      code
-    });
+    if (new Date(users[0].otp_expires_at).getTime() < Date.now()) {
+      return res.status(401).json({ error: 'OTP code expired' });
+    }
 
-    if (!isOtpValid(result)) {
+    if (hashOtp(code) !== users[0].otp_code_hash) {
       return res.status(401).json({ error: 'Invalid OTP code' });
     }
 
-    await pool.execute('UPDATE users SET otp_enabled = TRUE WHERE id = ?', [users[0].id]);
+    await pool.execute(
+      'UPDATE users SET otp_enabled = TRUE, otp_code_hash = NULL, otp_expires_at = NULL WHERE id = ?',
+      [users[0].id]
+    );
 
     res.json({
       token: signAuthToken(users[0].id),
