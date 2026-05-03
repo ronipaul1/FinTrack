@@ -9,8 +9,9 @@ const pool = require('../config/database');
 const auth = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM = process.env.RESEND_FROM || 'FinTrack <onboarding@resend.dev>';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL;
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'FinTrack';
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 5;
 
 const signAuthToken = (userId) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
@@ -29,19 +30,23 @@ const serializeUser = (user) => ({
 const hashOtp = (code) => crypto.createHash('sha256').update(code).digest('hex');
 
 const sendOtpEmail = async (email, code) => {
-  if (!RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY is not configured');
+  if (!BREVO_API_KEY) {
+    throw new Error('BREVO_API_KEY is not configured');
+  }
+  if (!BREVO_FROM_EMAIL) {
+    throw new Error('BREVO_FROM_EMAIL is not configured');
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'api-key': BREVO_API_KEY,
+      accept: 'application/json',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      from: RESEND_FROM,
-      to: [email],
+      sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
+      to: [{ email }],
       subject: 'Your FinTrack verification code',
       html: `<p>Your FinTrack verification code is:</p><h2>${code}</h2><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p>`,
       text: `Your FinTrack verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
