@@ -101,7 +101,7 @@ export default function Sidebar() {
             overflow: 'hidden',
           }}>
             {user?.profile_photo
-              ? <img src={`http://localhost:5000${user.profile_photo}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={user.profile_photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : user?.name?.[0]?.toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>

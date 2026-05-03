@@ -93,7 +93,7 @@ export default function Profile() {
             boxShadow: '0 0 0 4px rgba(99,102,241,0.15)',
           }}>
             {user?.profile_photo
-              ? <img src={`http://localhost:5000${user.profile_photo}`} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={user.profile_photo} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : user?.name?.[0]?.toUpperCase()}
           </div>
           <label htmlFor="photo-upload" style={{

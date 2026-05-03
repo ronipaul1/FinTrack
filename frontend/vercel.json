@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://fintrack-production-b0e2.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://fintrack-production-b0e2.up.railway.app/uploads/:path*"
+    }
+  ]
+}
