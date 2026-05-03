@@ -89,12 +89,17 @@ const createOtpChallenge = async (user, includeSetup = false) => {
   };
 
   if (challenge.otp_setup_required) {
-    challenge.otp_setup = await rapidOtpRequest('/enroll/', {
-      secret,
-      account: user.email,
-      issuer: OTP_ISSUER,
-      printQR: true
-    });
+    try {
+      challenge.otp_setup = await rapidOtpRequest('/enroll/', {
+        secret,
+        account: user.email,
+        issuer: OTP_ISSUER,
+        printQR: true
+      });
+    } catch (error) {
+      console.error('OTP enroll error:', error.message);
+      challenge.otp_setup_error = 'QR setup is unavailable. Use the manual secret.';
+    }
     challenge.manual_secret = secret;
   }
 
@@ -187,6 +192,13 @@ router.post('/login', [
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (!user.otp_enabled) {
+      return res.json({
+        token: signAuthToken(user.id),
+        user: serializeUser(user)
+      });
     }
 
     res.json({
