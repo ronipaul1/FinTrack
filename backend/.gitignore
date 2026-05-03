@@ -1,0 +1,6 @@
+node_modules/
+.env
+uploads/receipts/*
+uploads/profiles/*
+!uploads/receipts/.gitkeep
+!uploads/profiles/.gitkeep
