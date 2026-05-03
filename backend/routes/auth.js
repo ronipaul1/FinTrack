@@ -48,8 +48,8 @@ const sendOtpEmail = async (email, code) => {
       sender: { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL },
       to: [{ email }],
       subject: 'Your FinTrack verification code',
-      html: `<p>Your FinTrack verification code is:</p><h2>${code}</h2><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p>`,
-      text: `Your FinTrack verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
+      htmlContent: `<p>Your FinTrack verification code is:</p><h2>${code}</h2><p>This code expires in ${OTP_EXPIRY_MINUTES} minutes.</p>`,
+      textContent: `Your FinTrack verification code is ${code}. It expires in ${OTP_EXPIRY_MINUTES} minutes.`
     })
   });
 
