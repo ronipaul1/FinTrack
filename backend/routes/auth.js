@@ -13,6 +13,8 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL;
 const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'FinTrack';
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES) || 5;
+const FRONTEND_URL = 'https://fintrack-manager.vercel.app';
+const RESET_TOKEN_EXPIRY_MINUTES = 60;
 
 const signAuthToken = (userId) => jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 const signOtpToken = (userId) => jwt.sign({ userId, purpose: 'otp' }, JWT_SECRET, { expiresIn: '10m' });
@@ -257,10 +259,17 @@ router.post('/forgot-password', [
   body('email').isEmail().normalizeEmail(),
 ], async (req, res) => {
   const { email } = req.body;
+
   try {
-    const [users] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    const [users] = await pool.execute(
+      'SELECT id FROM users WHERE email = ?',
+      [email]
+    );
+
     if (users.length === 0) {
-      return res.json({ message: 'If email exists, reset link sent' });
+      return res.json({
+        message: 'If an account exists for this email, a reset link has been sent.'
+      });
     }
 
     const token = uuidv4();
@@ -271,16 +280,100 @@ router.post('/forgot-password', [
       [token, expiry, email]
     );
 
-    // In production, send email here
-    res.json({ 
-      message: 'Password reset link sent',
-      // Only for development/demo
-      reset_token: token 
+    const resetUrl = `${FRONTEND_URL}/forgot-password?token=${encodeURIComponent(token)}`;
+
+    const emailResponse = await fetch(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        method: 'POST',
+        headers: {
+          'api-key': BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: BREVO_FROM_NAME,
+            email: BREVO_FROM_EMAIL
+          },
+          to: [{ email }],
+          subject: 'Reset your FinTrack password',
+
+          htmlContent: `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px">
+              <h2>Reset your FinTrack password</h2>
+
+              <p>
+                We received a request to reset your FinTrack password.
+              </p>
+
+              <p style="margin:30px 0">
+                <a
+                  href="${resetUrl}"
+                  style="background:#6366f1;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;font-weight:bold"
+                >
+                  Reset Password
+                </a>
+              </p>
+
+              <p>This link will expire in 60 minutes.</p>
+
+              <p>
+                If you did not request this, you can safely ignore this email.
+              </p>
+
+              <p style="font-size:12px;color:#666;margin-top:30px">
+                If the button doesn't work, copy this link into your browser:
+                <br>
+                ${resetUrl}
+              </p>
+            </div>
+          `,
+
+          textContent: `
+Reset your FinTrack password
+
+We received a request to reset your FinTrack password.
+
+Reset Password:
+${resetUrl}
+
+This link will expire in 60 minutes.
+
+If you did not request this, you can safely ignore this email.
+          `
+        })
+      }
+    );
+
+    if (!emailResponse.ok) {
+      const emailError = await emailResponse.text();
+
+      console.error(
+        'Brevo reset email error:',
+        emailError
+      );
+
+      throw new Error(
+        'Failed to send password reset email'
+      );
+    }
+
+    res.json({
+      message: 'If an account exists for this email, a reset link has been sent.'
     });
+
   } catch (error) {
-    res.status(500).json({ error: 'Failed to process request' });
+    console.error(
+      'Forgot password error:',
+      error
+    );
+
+    res.status(500).json({
+      error: 'Failed to process request'
+    });
   }
 });
+
 
 // Reset password
 router.post('/reset-password', [
@@ -288,24 +381,39 @@ router.post('/reset-password', [
   body('password').isLength({ min: 6 }),
 ], async (req, res) => {
   const { token, password } = req.body;
+
   try {
     const [users] = await pool.execute(
       'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()',
       [token]
     );
+
     if (users.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired token' });
+      return res.status(400).json({
+        error: 'Invalid or expired token'
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+
     await pool.execute(
       'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
       [hashedPassword, users[0].id]
     );
 
-    res.json({ message: 'Password reset successful' });
+    res.json({
+      message: 'Password reset successful'
+    });
+
   } catch (error) {
-    res.status(500).json({ error: 'Failed to reset password' });
+    console.error(
+      'Reset password error:',
+      error
+    );
+
+    res.status(500).json({
+      error: 'Failed to reset password'
+    });
   }
 });
 
