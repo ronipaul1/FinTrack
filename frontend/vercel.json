@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://fintrack-production-b0e2.up.railway.app/api/:path*"
+      "destination": "https://fintrack-backend-vx5v.onrender.com/api/:path*"
     },
     {
       "source": "/uploads/:path*",
-      "destination": "https://fintrack-production-b0e2.up.railway.app/uploads/:path*"
+      "destination": "https://fintrack-backend-vx5v.onrender.com/uploads/:path*"
     }
   ]
 }
