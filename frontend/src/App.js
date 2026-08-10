@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import Home from './pages/Home';
 import './index.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -41,7 +42,17 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+     <Route path="/" element={<Home />} />
+
+<Route path="/dashboard"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <Dashboard />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
       <Route path="/transactions" element={<ProtectedRoute><AppLayout><Transactions /></AppLayout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><AppLayout><Analytics /></AppLayout></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><AppLayout><Invoices /></AppLayout></ProtectedRoute>} />
