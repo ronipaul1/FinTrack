@@ -23,7 +23,7 @@ export default function Login() {
         toast.success('Enter the code sent to your email');
       } else {
         toast.success('Welcome back!');
-        navigate('/');
+        navigate('/dashboard');;
       }
     } catch (err) {
       toast.error(err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || 'Login failed');
@@ -38,7 +38,7 @@ export default function Login() {
     try {
       await verifyOtp(otpChallenge.pending_token, otpCode);
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');;
     } catch (err) {
       toast.error(err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || 'OTP verification failed');
     } finally {
