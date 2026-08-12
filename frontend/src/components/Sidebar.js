@@ -9,7 +9,7 @@ import {
 } from 'react-icons/ri';
 
 const navItems = [
-  { to: '/', icon: RiDashboardLine, label: 'Dashboard' },
+  { to: '/dashboard', icon: RiDashboardLine, label: 'Dashboard' },
   { to: '/transactions', icon: RiExchangeDollarLine, label: 'Transactions' },
   { to: '/analytics', icon: RiPieChartLine, label: 'Analytics' },
   { to: '/invoices', icon: RiFileTextLine, label: 'Invoices' },
