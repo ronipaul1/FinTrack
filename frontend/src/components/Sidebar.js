@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   RiDashboardLine, RiExchangeDollarLine, RiPieChartLine,
   RiFileTextLine, RiBookLine, RiFileListLine, RiBellLine,
-  RiUserLine, RiLogoutBoxLine, RiMenuLine, RiCloseLine,
-  RiMoneyDollarCircleLine
+  RiUserLine, RiLogoutBoxLine, RiMenuLine, RiCloseLine
 } from 'react-icons/ri';
 
 const navItems = [
@@ -43,13 +42,25 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px', marginBottom: 32 }}>
         <div style={{
-          width: 38, height: 38,
-          background: 'var(--gradient-1)',
+          width: 38,
+          height: 38,
           borderRadius: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 20,
-        }}>
-          <RiMoneyDollarCircleLine color="white" />
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+    }}>
+    <img
+      src="/favicon.png"
+      alt="FinTrack"
+      style={{
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+    }}
+  />
+</div>
+          
         </div>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>FinTrack</div>
