@@ -66,7 +66,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/dashboard'}
             onClick={() => setMobileOpen(false)}
             style={({ isActive }) => ({
               display: 'flex',
