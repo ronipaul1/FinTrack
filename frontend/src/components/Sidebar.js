@@ -61,7 +61,6 @@ export default function Sidebar() {
   />
 </div>
           
-        </div>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>FinTrack</div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Money Manager</div>
