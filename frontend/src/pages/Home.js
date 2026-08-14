@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
   FiArrowRight,
   FiShield,
@@ -45,6 +46,7 @@ const features = [
 ];
 
 const Home = () => {
+  const { user, logout } = useAuth();
   return (
     <div className="home-page">
 
@@ -58,15 +60,33 @@ const Home = () => {
           </div>
         </Link>
 
-        <div className="home-nav-actions">
-          <Link to="/login" className="btn btn-outline">
-            Sign In
-          </Link>
+<div className="home-nav-actions">
+  {user ? (
+    <>
+      <Link to="/dashboard" className="btn btn-outline">
+        Dashboard
+      </Link>
 
-          <Link to="/register" className="btn btn-primary">
-            Get Started
-          </Link>
-        </div>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={logout}
+      >
+        Logout
+      </button>
+    </>
+  ) : (
+    <>
+      <Link to="/login" className="btn btn-outline">
+        Sign In
+      </Link>
+
+      <Link to="/register" className="btn btn-primary">
+        Get Started
+      </Link>
+    </>
+  )}
+</div>
       </nav>
 
       {/* Hero */}
