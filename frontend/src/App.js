@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Analytics from './pages/Analytics';
+import Savings from './pages/savings';
 import Invoices from './pages/Invoices';
 import Ledger from './pages/Ledger';
 import Statements from './pages/Statements';
@@ -54,6 +55,7 @@ function AppRoutes() {
   }
 />
       <Route path="/transactions" element={<ProtectedRoute><AppLayout><Transactions /></AppLayout></ProtectedRoute>} />
+      <Route path="/savings" element={<ProtectedRoute><AppLayout><Savings /></AppLayout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><AppLayout><Analytics /></AppLayout></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><AppLayout><Invoices /></AppLayout></ProtectedRoute>} />
       <Route path="/ledger" element={<ProtectedRoute><AppLayout><Ledger /></AppLayout></ProtectedRoute>} />

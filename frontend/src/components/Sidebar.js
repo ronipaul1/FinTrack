@@ -4,12 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   RiDashboardLine, RiExchangeDollarLine, RiPieChartLine,
   RiFileTextLine, RiBookLine, RiFileListLine, RiBellLine,
-  RiUserLine, RiLogoutBoxLine, RiMenuLine, RiCloseLine
+  RiUserLine, RiLogoutBoxLine, RiMenuLine, RiCloseLine,
+  RiSafe2Line
 } from 'react-icons/ri';
 
 const navItems = [
   { to: '/dashboard', icon: RiDashboardLine, label: 'Dashboard' },
   { to: '/transactions', icon: RiExchangeDollarLine, label: 'Transactions' },
+  { to: '/savings', icon: RiSafe2Line, label: 'Savings & Investments' },
   { to: '/analytics', icon: RiPieChartLine, label: 'Analytics' },
   { to: '/invoices', icon: RiFileTextLine, label: 'Invoices' },
   { to: '/ledger', icon: RiBookLine, label: 'Account Book' },
