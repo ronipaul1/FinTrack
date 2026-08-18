@@ -26,7 +26,8 @@ const serializeUser = (user) => ({
   phone: user.phone,
   currency: user.currency || 'INR',
   dark_mode: user.dark_mode,
-  profile_photo: user.profile_photo
+  profile_photo: user.profile_photo,
+  avatar: user.avatar
 });
 
 const hashOtp = (code) => crypto.createHash('sha256').update(code).digest('hex');
@@ -244,9 +245,9 @@ router.post('/verify-otp', [
 router.get('/me', auth, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      'SELECT id, name, email, phone, currency, dark_mode, profile_photo, created_at FROM users WHERE id = ?',
-      [req.userId]
-    );
+  'SELECT id, name, email, phone, currency, dark_mode, profile_photo, avatar, created_at FROM users WHERE id = ?',
+  [req.userId]
+);
     if (users.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(users[0]);
   } catch (error) {

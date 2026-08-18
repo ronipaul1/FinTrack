@@ -20,6 +20,7 @@ export default function Transactions() {
   const [editTx, setEditTx] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [expandedTx, setExpandedTx] = useState(null);
 
   const fetchCategories = useCallback(async () => {
     try { const res = await api.get('/categories'); setCategories(res.data); } catch {}
@@ -188,6 +189,158 @@ export default function Transactions() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+                {/* Mobile Transaction List */}
+        {!loading && transactions.length > 0 && (
+          <div className="mobile-transaction-list">
+            {transactions.map(tx => {
+              const isExpanded = expandedTx === tx.id;
+
+              let parsedTags = [];
+              try {
+                parsedTags = typeof tx.tags === 'string'
+                  ? JSON.parse(tx.tags || '[]')
+                  : tx.tags || [];
+              } catch {
+                parsedTags = [];
+              }
+
+              return (
+                <div
+                  key={tx.id}
+                  className={`mobile-transaction-item ${isExpanded ? 'expanded' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="mobile-transaction-summary"
+                    onClick={() =>
+                      setExpandedTx(isExpanded ? null : tx.id)
+                    }
+                  >
+                    <div className="mobile-transaction-main">
+                      <span className="mobile-transaction-date">
+                        {formatDate(tx.date)}
+                      </span>
+
+                      <span className="mobile-transaction-description">
+                        {tx.description || '—'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-transaction-right">
+                      <span
+                        className="mobile-transaction-amount"
+                        style={{
+                          color: tx.type === 'income'
+                            ? 'var(--accent-green)'
+                            : 'var(--accent-red)',
+                        }}
+                      >
+                        {tx.type === 'income' ? '+' : '-'}
+                        {formatCurrency(
+                          tx.amount,
+                          tx.currency || user?.currency
+                        )}
+                      </span>
+
+                      <span className="mobile-transaction-arrow">
+                        {isExpanded ? '▲' : '▼'}
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mobile-transaction-details">
+                      <div className="mobile-detail-row">
+                        <span>Category</span>
+                        <strong>
+                          {tx.category_icon && `${tx.category_icon} `}
+                          {tx.category_name || '—'}
+                        </strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Type</span>
+                        <strong>
+                          {tx.type === 'income' ? '↑ Income' : '↓ Expense'}
+                        </strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Amount</span>
+                        <strong
+                          style={{
+                            color: tx.type === 'income'
+                              ? 'var(--accent-green)'
+                              : 'var(--accent-red)',
+                          }}
+                        >
+                          {tx.type === 'income' ? '+' : '-'}
+                          {formatCurrency(
+                            tx.amount,
+                            tx.currency || user?.currency
+                          )}
+                        </strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Date</span>
+                        <strong>{formatDate(tx.date)}</strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Notes</span>
+                        <strong>{tx.notes || '—'}</strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Tags</span>
+                        <strong>
+                          {parsedTags.length > 0
+                            ? parsedTags.join(', ')
+                            : '—'}
+                        </strong>
+                      </div>
+
+                      <div className="mobile-detail-row">
+                        <span>Receipt</span>
+                        <strong>
+                          {tx.receipt_url ? '📎 Available' : '—'}
+                        </strong>
+                      </div>
+
+                      {tx.is_recurring && (
+                        <div className="mobile-detail-row">
+                          <span>Recurring</span>
+                          <strong>🔄 Yes</strong>
+                        </div>
+                      )}
+
+                      <div className="mobile-transaction-actions">
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleEdit(tx)}
+                        >
+                          <RiEditLine size={15} />
+                          Edit
+                        </button>
+
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleDelete(tx.id)}
+                          style={{ color: 'var(--accent-red)' }}
+                        >
+                          <RiDeleteBinLine size={15} />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

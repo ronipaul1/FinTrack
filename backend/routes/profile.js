@@ -20,7 +20,7 @@ const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
 router.get('/', auth, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      'SELECT id, name, email, phone, currency, dark_mode, profile_photo, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, phone, currency, dark_mode, profile_photo, avatar, created_at FROM users WHERE id = ?',
       [req.userId]
     );
     if (users.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -32,13 +32,13 @@ router.get('/', auth, async (req, res) => {
 
 router.put('/', auth, async (req, res) => {
   try {
-    const { name, phone, currency, dark_mode } = req.body;
+    const { name, phone, currency, dark_mode, avatar } = req.body;;
     await pool.execute(
-      'UPDATE users SET name=?, phone=?, currency=?, dark_mode=? WHERE id=?',
-      [name, phone || null, currency || 'INR', dark_mode || false, req.userId]
+      'UPDATE users SET name=?, phone=?, currency=?, dark_mode=?, avatar=? WHERE id=?',
+      [name, phone || null, currency || 'INR', dark_mode || false, avatar || 'avatar_001', req.userId]
     );
     const [users] = await pool.execute(
-      'SELECT id, name, email, phone, currency, dark_mode, profile_photo FROM users WHERE id = ?',
+      'SELECT id, name, email, phone, currency, dark_mode, profile_photo, avatar FROM users WHERE id = ?',
       [req.userId]
     );
     res.json(users[0]);
