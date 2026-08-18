@@ -6,10 +6,6 @@ import {
   RiAddLine,
   RiEditLine,
   RiDeleteBinLine,
-  RiMoneyDollarCircleLine,
-  RiBankLine,
-  RiStockLine,
-  RiCoinLine,
   RiCloseLine,
   RiDownloadLine
 } from 'react-icons/ri';

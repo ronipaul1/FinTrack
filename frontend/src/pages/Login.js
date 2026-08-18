@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
 import {
-  RiMoneyDollarCircleLine,
   RiEyeLine,
   RiEyeOffLine,
 } from "react-icons/ri";

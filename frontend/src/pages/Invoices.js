@@ -21,16 +21,6 @@ const STATUS_COLORS = {
   paid: "badge-green",
   overdue: "badge-red",
 };
-const TEMPLATE = {
-  ink: [15, 23, 42],
-  muted: [100, 116, 139],
-  line: [226, 232, 240],
-  cream: [255, 251, 235],
-  mint: [220, 252, 231],
-  green: [22, 163, 74],
-  coral: [244, 114, 92],
-  navy: [15, 23, 42],
-};
 
 const emptyItem = () => ({ description: "", quantity: 1, rate: "", amount: 0 });
 const getItems = (items) =>
